@@ -22,15 +22,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Chess Game with AI')
-    parser.add_argument('--no-web', action='store_true', help='Disable web server')
-    parser.add_argument('--no-ui', action='store_true', help='Disable Pygame UI')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--no-web', action='store_true', help='Disable web server and run standalone game')
     parser.add_argument('--user-id', type=int, help='User ID for the Pygame UI to connect to')
     parser.add_argument('--token', type=str, help='Authentication token for the user')
     parser.add_argument('--difficulty', type=str, choices=['easy', 'medium', 'hard'], default='medium',
                         help='Difficulty level for the AI')
     parser.add_argument('--saved-game-id', type=int, help='ID of the saved game to load')
     parser.add_argument('--saved-game-fen', type=str, help='FEN of the saved game to load')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     return parser.parse_args()
 
 
@@ -74,8 +73,9 @@ def main():
         web_thread.start()
         print("Web server started on http://localhost:5000")
     
-    # Start Pygame UI if enabled
-    if not args.no_ui:
+    # Only start Pygame UI if explicitly requested with specific arguments
+    # or when --no-web is used (standalone mode)
+    if args.no_web or (args.user_id is not None and args.token is not None):
         start_game_ui(
             user_id=args.user_id, 
             token=args.token,
@@ -85,6 +85,8 @@ def main():
         )
     elif not args.no_web:
         # If UI is disabled but web is enabled, keep the script running
+        print("Game window will only open when launched from the website.")
+        print("Visit http://localhost:5000 to access the web interface.")
         try:
             web_thread.join()
         except KeyboardInterrupt:

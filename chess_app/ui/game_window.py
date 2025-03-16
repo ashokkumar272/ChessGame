@@ -145,33 +145,39 @@ class GameWindow:
         pieces = {}
         piece_symbols = ['p', 'n', 'b', 'r', 'q', 'k', 'P', 'N', 'B', 'R', 'Q', 'K']
         
-        # Check for recreation flag file
-        recreate_flag_path = os.path.join(self.PIECES_DIR, ".recreate_pieces")
-        recreate_pieces = os.path.exists(recreate_flag_path)
+        # Map from chess notation to image file notation
+        # Black pieces start with 'b', white pieces start with 'w'
+        piece_mapping = {
+            'p': 'bp', 'n': 'bn', 'b': 'bb', 'r': 'br', 'q': 'bq', 'k': 'bk',
+            'P': 'wp', 'N': 'wn', 'B': 'wb', 'R': 'wr', 'Q': 'wq', 'K': 'wk'
+        }
         
-        # Check if piece images exist, if not create placeholders
+        missing_images = []
+        
+        # Check for each piece symbol
         for symbol in piece_symbols:
-            image_path = os.path.join(self.PIECES_DIR, f"{symbol}.png")
+            image_path = os.path.join(self.PIECES_DIR, f"{piece_mapping[symbol]}.jpg")
             
-            if os.path.exists(image_path) and not recreate_pieces:
-                # Load the image if it exists
-                image = pygame.image.load(image_path)
-            else:
-                # Create a placeholder image
-                image = self._create_placeholder_piece(symbol)
-                
-                # Save the placeholder for future use
-                pygame.image.save(image, image_path)
-            
-            # Scale the image to fit the square
-            pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
-        
-        # Remove recreation flag if it exists
-        if recreate_pieces and os.path.exists(recreate_flag_path):
             try:
-                os.remove(recreate_flag_path)
-            except:
-                pass
+                if os.path.exists(image_path):
+                    # Load the image if it exists
+                    image = pygame.image.load(image_path)
+                    print(f"Loaded image for {symbol}: {image_path}")
+                else:
+                    # Create a placeholder image if the image doesn't exist
+                    missing_images.append(piece_mapping[symbol])
+                    image = self._create_placeholder_piece(symbol)
+                    print(f"Using placeholder for {symbol}, image not found: {image_path}")
+                
+                # Scale the image to fit the square
+                pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
+            except Exception as e:
+                print(f"Error loading image for {symbol}: {e}")
+                image = self._create_placeholder_piece(symbol)
+                pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
+        
+        if missing_images:
+            print(f"WARNING: The following piece images are missing: {', '.join(missing_images)}")
             
         return pieces
     
@@ -515,13 +521,8 @@ class GameWindow:
             print(f"Error saving game: {e}")
     
     def _recreate_piece_images(self):
-        """Force recreation of all piece images."""
-        # Create a flag file to indicate pieces should be recreated
-        flag_path = os.path.join(self.PIECES_DIR, ".recreate_pieces")
-        with open(flag_path, 'w') as f:
-            f.write("Delete this file to prevent piece recreation.")
-            
-        # Reload the pieces
+        """Reload all piece images."""
+        # Directly reload the pieces
         self.piece_images = self._load_piece_images()
     
     def run(self):
