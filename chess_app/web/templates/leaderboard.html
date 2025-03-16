@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Chess Game with AI - Leaderboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <h1 class="mb-4">Leaderboard</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Top Players</h3>
+            </div>
+            <div class="card-body">
+                {% if top_players %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover leaderboard-table">
+                        <thead class="leaderboard-header">
+                            <tr>
+                                <th class="leaderboard-rank">#</th>
+                                <th>Player</th>
+                                <th>Win %</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                                <th>Draws</th>
+                                <th>Games</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in top_players %}
+                            <tr>
+                                <td class="leaderboard-rank">{{ loop.index }}</td>
+                                <td>{{ player.username }}</td>
+                                <td>{{ "%.1f"|format(player.get_win_percentage()) }}%</td>
+                                <td>{{ player.wins }}</td>
+                                <td>{{ player.losses }}</td>
+                                <td>{{ player.draws }}</td>
+                                <td>{{ player.games_played }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p>No players have completed enough games to be ranked yet. Players need at least 5 games to appear on the leaderboard.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <p>Want to join the leaderboard? <a href="{{ url_for('play') }}">Start playing now!</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %} 

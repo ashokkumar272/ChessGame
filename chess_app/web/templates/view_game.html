@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Chess Game with AI - View Game{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">
+            Game #{{ game.id }}
+            {% if game.result == 'win' %}
+            <span class="badge bg-success">Win</span>
+            {% elif game.result == 'loss' %}
+            <span class="badge bg-danger">Loss</span>
+            {% else %}
+            <span class="badge bg-secondary">Draw</span>
+            {% endif %}
+        </h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Game Replay</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="chessboard-container" class="mb-4"></div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button id="btn-first-move" class="btn btn-outline-secondary">
+                                    <i class="bi bi-skip-backward-fill"></i>
+                                </button>
+                                <button id="btn-prev-move" class="btn btn-outline-secondary">
+                                    <i class="bi bi-caret-left-fill"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="text-center">
+                                <span id="current-move">Move: 0 / {{ moves|length }}</span>
+                            </div>
+                            
+                            <div>
+                                <button id="btn-next-move" class="btn btn-outline-secondary">
+                                    <i class="bi bi-caret-right-fill"></i>
+                                </button>
+                                <button id="btn-last-move" class="btn btn-outline-secondary">
+                                    <i class="bi bi-skip-forward-fill"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Game Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Date:</span>
+                                <span>{{ game.end_time.strftime('%Y-%m-%d') }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Time:</span>
+                                <span>{{ game.end_time.strftime('%H:%M') }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Difficulty:</span>
+                                <span>{{ game.difficulty.capitalize() }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Result:</span>
+                                <span class="
+                                    {% if game.result == 'win' %}text-success
+                                    {% elif game.result == 'loss' %}text-danger
+                                    {% else %}text-secondary{% endif %}
+                                ">
+                                    {{ game.result.capitalize() }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Duration:</span>
+                                <span>
+                                    {% if game.start_time and game.end_time %}
+                                    {{ (game.end_time - game.start_time).seconds // 60 }} minutes
+                                    {% else %}
+                                    Unknown
+                                    {% endif %}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Total Moves:</span>
+                                <span>{{ moves|length }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Move List</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="move-list" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>White</th>
+                                        <th>Black</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="move-list-body">
+                                    {% for i in range(0, moves|length, 2) %}
+                                    <tr>
+                                        <td>{{ (i // 2) + 1 }}</td>
+                                        <td>{{ moves[i] }}</td>
+                                        <td>{% if i + 1 < moves|length %}{{ moves[i+1] }}{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <a href="{{ url_for('game_history') }}" class="btn btn-outline-secondary">Back to Game History</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chessboard.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the chessboard
+        const board = new Chessboard('chessboard-container', {
+            showCoordinates: true,
+            draggable: false,
+            position: 'start'
+        });
+        
+        // Game moves data
+        const moves = {{ moves|tojson }};
+        let currentMoveIndex = 0;
+        
+        // Update the current move display
+        function updateCurrentMove() {
+            document.getElementById('current-move').textContent = `Move: ${currentMoveIndex} / ${moves.length}`;
+        }
+        
+        // Handle navigation buttons
+        document.getElementById('btn-first-move').addEventListener('click', function() {
+            currentMoveIndex = 0;
+            updateCurrentMove();
+            // Reset the board to the initial position
+            board._createBoard();
+            board._setupInitialPosition();
+        });
+        
+        document.getElementById('btn-prev-move').addEventListener('click', function() {
+            if (currentMoveIndex > 0) {
+                currentMoveIndex--;
+                updateCurrentMove();
+                // In a real implementation, this would show the position after the previous move
+                alert('In a complete implementation, this would show the position after move ' + currentMoveIndex);
+            }
+        });
+        
+        document.getElementById('btn-next-move').addEventListener('click', function() {
+            if (currentMoveIndex < moves.length) {
+                currentMoveIndex++;
+                updateCurrentMove();
+                // In a real implementation, this would make the next move on the board
+                alert('In a complete implementation, this would show the position after move ' + currentMoveIndex);
+            }
+        });
+        
+        document.getElementById('btn-last-move').addEventListener('click', function() {
+            currentMoveIndex = moves.length;
+            updateCurrentMove();
+            // In a real implementation, this would show the final position
+            alert('In a complete implementation, this would show the final position');
+        });
+        
+        // Initialize the display
+        updateCurrentMove();
+    });
+</script>
+{% endblock %} 

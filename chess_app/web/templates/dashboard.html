@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Chess Game with AI - Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Your Dashboard</h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Game Statistics</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 text-center">
+                                <div class="stats-card">
+                                    <div class="stats-value">{{ stats.games_played }}</div>
+                                    <div class="stats-label">Games Played</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <div class="stats-card">
+                                    <div class="stats-value text-success">{{ stats.wins }}</div>
+                                    <div class="stats-label">Wins</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <div class="stats-card">
+                                    <div class="stats-value text-danger">{{ stats.losses }}</div>
+                                    <div class="stats-label">Losses</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <div class="stats-card">
+                                    <div class="stats-value text-secondary">{{ stats.draws }}</div>
+                                    <div class="stats-label">Draws</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6 offset-md-3 text-center">
+                                <div class="stats-card">
+                                    <div class="stats-value text-primary">{{ "%.1f"|format(stats.win_percentage) }}%</div>
+                                    <div class="stats-label">Win Percentage</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">Recent Games</h3>
+                        <a href="{{ url_for('game_history') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_games %}
+                        <div class="list-group">
+                            {% for game in recent_games %}
+                            <a href="{{ url_for('view_game', game_id=game.id) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">
+                                        {% if game.result == 'win' %}
+                                        <span class="badge bg-success">Win</span>
+                                        {% elif game.result == 'loss' %}
+                                        <span class="badge bg-danger">Loss</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Draw</span>
+                                        {% endif %}
+                                        Game #{{ game.id }}
+                                    </h5>
+                                    <small>{{ game.end_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                <p class="mb-1">Difficulty: {{ game.difficulty.capitalize() }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center">You haven't played any games yet. <a href="{{ url_for('play') }}">Start playing now!</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Quick Actions</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('play') }}" class="btn btn-primary">Play New Game</a>
+                            <a href="{{ url_for('game_history') }}" class="btn btn-outline-secondary">View Game History</a>
+                            <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-secondary">View Leaderboard</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Saved Games</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if saved_games %}
+                        <div class="list-group">
+                            {% for game in saved_games %}
+                            <a href="{{ url_for('load_game', game_id=game.id) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ game.name }}</h5>
+                                    <small>{{ game.created_at.strftime('%Y-%m-%d') }}</small>
+                                </div>
+                                <p class="mb-1">Difficulty: {{ game.difficulty.capitalize() }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center">You don't have any saved games.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

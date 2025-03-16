@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Chess Game with AI - Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2 text-center">
+        <h1 class="display-4 mb-4">Welcome to Chess Game with AI</h1>
+        <p class="lead">
+            Challenge yourself with a game of chess against our AI opponent with multiple difficulty levels.
+            Track your progress, save games, and compete on the leaderboard!
+        </p>
+        
+        <div class="mt-5">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Play Chess</h3>
+                            <p class="card-text">Start a new game against our AI opponent with customizable difficulty levels.</p>
+                            <a href="{{ url_for('play') }}" class="btn btn-primary">Play Now</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Track Progress</h3>
+                            <p class="card-text">View your game history, statistics, and saved games in your dashboard.</p>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Dashboard</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Leaderboard</h3>
+                            <p class="card-text">See how you rank against other players on our global leaderboard.</p>
+                            <a href="{{ url_for('leaderboard') }}" class="btn btn-primary">View Leaderboard</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-5">
+            <h2>Features</h2>
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Multiple Difficulty Levels</h5>
+                            <p class="card-text">Choose from Easy, Medium, or Hard AI opponents to match your skill level.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Save and Resume Games</h5>
+                            <p class="card-text">Save your game at any point and resume it later when you have time.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Game History</h5>
+                            <p class="card-text">Review your past games to learn from your mistakes and improve your strategy.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Statistics Tracking</h5>
+                            <p class="card-text">Track your wins, losses, and draws to monitor your progress over time.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if not current_user.is_authenticated %}
+        <div class="mt-5">
+            <p>To get started, please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> for an account.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

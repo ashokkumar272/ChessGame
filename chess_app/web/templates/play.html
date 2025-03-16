@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Chess Game with AI - Play{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center">
+        <h1 class="mb-4">Play Chess</h1>
+        
+        <div class="alert alert-info">
+            <p>To play the game, please launch the Pygame interface by running <code>python run.py</code> from the command line.</p>
+            <p>This web interface is for managing your account, viewing statistics, and accessing saved games.</p>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-6 offset-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Game Options</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="launch-game-form" action="{{ url_for('launch_game') }}" method="POST">
+                            <h4>Difficulty Level</h4>
+                            <div class="btn-group difficulty-selector w-100 mb-4" role="group">
+                                <input type="hidden" name="difficulty" id="difficulty" value="easy">
+                                <button type="button" class="btn btn-outline-success difficulty-btn active" data-difficulty="easy">Easy</button>
+                                <button type="button" class="btn btn-outline-warning difficulty-btn" data-difficulty="medium">Medium</button>
+                                <button type="button" class="btn btn-outline-danger difficulty-btn" data-difficulty="hard">Hard</button>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="launch-game-btn">Launch Game</button>
+                                {% if saved_games %}
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Load Saved Game</a>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="mt-3 alert alert-info" id="game-status" style="display: none;">
+                    <p id="status-message">Launching the game...</p>
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if saved_game %}
+<div class="modal fade" id="loadGameModal" tabindex="-1" aria-labelledby="loadGameModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="loadGameModalLabel">Load Saved Game</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Would you like to load your saved game "{{ saved_game.name }}"?</p>
+                <p><strong>Difficulty:</strong> {{ saved_game.difficulty.capitalize() }}</p>
+                <p><strong>Saved on:</strong> {{ saved_game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-load-btn">Load Game</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show the load game modal if a saved game is provided
+        {% if saved_game %}
+        var loadGameModal = new bootstrap.Modal(document.getElementById('loadGameModal'));
+        loadGameModal.show();
+        
+        // Handle the confirm load button
+        document.getElementById('confirm-load-btn').addEventListener('click', function() {
+            // Launch the game with the saved game data
+            launchGameWithSavedGame('{{ saved_game.id }}');
+            loadGameModal.hide();
+        });
+        {% endif %}
+        
+        // Handle difficulty buttons
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                difficultyButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Update hidden input value
+                document.getElementById('difficulty').value = this.dataset.difficulty;
+            });
+        });
+        
+        // Handle the launch game form submission
+        document.getElementById('launch-game-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const statusDiv = document.getElementById('game-status');
+            
+            // Show the loading indicator
+            statusDiv.style.display = 'block';
+            document.getElementById('status-message').textContent = 'Launching the game...';
+            
+            // Disable the form
+            const submitButton = document.getElementById('launch-game-btn');
+            submitButton.disabled = true;
+            
+            // Submit the form using AJAX
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status-message').textContent = 'Game launched successfully! You can close this tab if you want.';
+                    // Remove the spinner
+                    document.querySelector('#game-status .spinner-border').remove();
+                } else {
+                    document.getElementById('status-message').textContent = 'Error: ' + data.error;
+                    submitButton.disabled = false;
+                }
+            })
+            .catch(error => {
+                document.getElementById('status-message').textContent = 'Error launching the game. Please try again.';
+                console.error('Error:', error);
+                submitButton.disabled = false;
+            });
+        });
+        
+        function launchGameWithSavedGame(gameId) {
+            // Add the saved game ID to the form data
+            const difficultyInput = document.getElementById('difficulty');
+            const formData = new FormData();
+            formData.append('difficulty', difficultyInput.value);
+            formData.append('saved_game_id', gameId);
+            
+            const statusDiv = document.getElementById('game-status');
+            
+            // Show the loading indicator
+            statusDiv.style.display = 'block';
+            document.getElementById('status-message').textContent = 'Launching the game with saved data...';
+            
+            // Disable all buttons
+            document.querySelectorAll('button').forEach(button => {
+                button.disabled = true;
+            });
+            
+            // Submit the request
+            fetch('{{ url_for("launch_game") }}', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status-message').textContent = 'Game launched successfully! You can close this tab if you want.';
+                    // Remove the spinner
+                    document.querySelector('#game-status .spinner-border').remove();
+                } else {
+                    document.getElementById('status-message').textContent = 'Error: ' + data.error;
+                    document.querySelectorAll('button').forEach(button => {
+                        button.disabled = false;
+                    });
+                }
+            })
+            .catch(error => {
+                document.getElementById('status-message').textContent = 'Error launching the game. Please try again.';
+                console.error('Error:', error);
+                document.querySelectorAll('button').forEach(button => {
+                    button.disabled = false;
+                });
+            });
+        }
+    });
+</script>
+{% endblock %} 

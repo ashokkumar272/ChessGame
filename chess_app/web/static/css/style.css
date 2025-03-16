@@ -1,0 +1,139 @@
+/* Main styles for the Chess Game with AI web application */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Chess board styles */
+.chess-board {
+    width: 400px;
+    height: 400px;
+    margin: 0 auto;
+    border: 2px solid #333;
+}
+
+.chess-square {
+    width: 50px;
+    height: 50px;
+    float: left;
+}
+
+.light-square {
+    background-color: #f0d9b5;
+}
+
+.dark-square {
+    background-color: #b58863;
+}
+
+.chess-piece {
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Game controls */
+.game-controls {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.difficulty-selector {
+    margin-bottom: 15px;
+}
+
+/* Dashboard styles */
+.stats-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.stats-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stats-label {
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+/* Game history */
+.game-history-item {
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: transform 0.2s;
+}
+
+.game-history-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.game-result-win {
+    color: #28a745;
+}
+
+.game-result-loss {
+    color: #dc3545;
+}
+
+.game-result-draw {
+    color: #6c757d;
+}
+
+/* Leaderboard */
+.leaderboard-table {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.leaderboard-header {
+    background-color: #343a40;
+    color: #fff;
+}
+
+.leaderboard-rank {
+    font-weight: bold;
+    width: 50px;
+}
+
+/* Forms */
+.form-container {
+    max-width: 500px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chess-board {
+        width: 320px;
+        height: 320px;
+    }
+    
+    .chess-square {
+        width: 40px;
+        height: 40px;
+    }
+} 
