@@ -74,8 +74,8 @@ class GameWindow:
         os.makedirs(self.assets_dir, exist_ok=True)
         os.makedirs(self.PIECES_DIR, exist_ok=True)
         
-        # Load piece images
-        self.piece_images = self._load_piece_images()
+        # Force piece recreation to ensure distinct colors
+        self._recreate_piece_images()
         
         # Set the difficulty
         self.difficulty = difficulty.capitalize()
@@ -145,11 +145,15 @@ class GameWindow:
         pieces = {}
         piece_symbols = ['p', 'n', 'b', 'r', 'q', 'k', 'P', 'N', 'B', 'R', 'Q', 'K']
         
+        # Check for recreation flag file
+        recreate_flag_path = os.path.join(self.PIECES_DIR, ".recreate_pieces")
+        recreate_pieces = os.path.exists(recreate_flag_path)
+        
         # Check if piece images exist, if not create placeholders
         for symbol in piece_symbols:
             image_path = os.path.join(self.PIECES_DIR, f"{symbol}.png")
             
-            if os.path.exists(image_path):
+            if os.path.exists(image_path) and not recreate_pieces:
                 # Load the image if it exists
                 image = pygame.image.load(image_path)
             else:
@@ -162,6 +166,13 @@ class GameWindow:
             # Scale the image to fit the square
             pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
         
+        # Remove recreation flag if it exists
+        if recreate_pieces and os.path.exists(recreate_flag_path):
+            try:
+                os.remove(recreate_flag_path)
+            except:
+                pass
+            
         return pieces
     
     def _create_placeholder_piece(self, symbol: str) -> pygame.Surface:
@@ -178,15 +189,17 @@ class GameWindow:
         image = pygame.Surface((100, 100), pygame.SRCALPHA)
         
         # Determine color based on case (uppercase = white, lowercase = black)
-        color = self.WHITE if symbol.isupper() else self.BLACK
+        is_white = symbol.isupper()
+        piece_color = self.WHITE if is_white else self.BLACK
+        text_color = self.BLACK if is_white else self.WHITE
         
         # Draw a circle as the base
-        pygame.draw.circle(image, color, (50, 50), 40)
+        pygame.draw.circle(image, piece_color, (50, 50), 40)
         pygame.draw.circle(image, (128, 128, 128), (50, 50), 40, 2)
         
         # Add the symbol text
         font = pygame.font.SysFont("Arial", 60, bold=True)
-        text = font.render(symbol.upper(), True, (255, 255, 255) if symbol.islower() else (0, 0, 0))
+        text = font.render(symbol.upper(), True, text_color)
         text_rect = text.get_rect(center=(50, 50))
         image.blit(text, text_rect)
         
@@ -500,6 +513,16 @@ class GameWindow:
         except Exception as e:
             self.message = "Error saving game"
             print(f"Error saving game: {e}")
+    
+    def _recreate_piece_images(self):
+        """Force recreation of all piece images."""
+        # Create a flag file to indicate pieces should be recreated
+        flag_path = os.path.join(self.PIECES_DIR, ".recreate_pieces")
+        with open(flag_path, 'w') as f:
+            f.write("Delete this file to prevent piece recreation.")
+            
+        # Reload the pieces
+        self.piece_images = self._load_piece_images()
     
     def run(self):
         """Main game loop."""
