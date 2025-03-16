@@ -9,6 +9,7 @@ import sys
 import json
 import requests
 import datetime
+import time
 from typing import Tuple, Optional, List, Dict
 from chess_app.game.chess_game import ChessGame
 from chess_app.ai.chess_ai import ChessAI
@@ -128,12 +129,17 @@ class GameWindow:
                 data = response.json()
                 self.username = data.get('username')
                 self.is_authenticated = True
+                self.auth_time = time.time()  # Store the authentication time
                 self.message = f"Welcome, {self.username}! Your turn (White)"
                 print(f"Authenticated as user: {self.username} (ID: {self.user_id})")
             else:
+                self.is_authenticated = False
                 print(f"Authentication failed: {response.text}")
+                self.message = "Authentication failed. Please restart the game."
         except Exception as e:
+            self.is_authenticated = False
             print(f"Error during authentication: {e}")
+            self.message = f"Connection error. Check server: {str(e)}"
     
     def _load_piece_images(self) -> Dict:
         """
@@ -461,33 +467,107 @@ class GameWindow:
         Args:
             result: Game result ('win', 'loss', 'draw')
         """
+        if not self.is_authenticated:
+            self.message = "Not logged in. Game not recorded."
+            return
+        
+        # Refresh token if needed
+        if not self._refresh_token_if_needed():
+            self.message = "Authentication expired. Game not recorded."
+            return
+            
         try:
+            # Ensure moves is a properly formatted list
+            moves = self.chess_game.move_history
+            if not isinstance(moves, list):
+                # If it's not a list, try to convert it
+                if isinstance(moves, str):
+                    try:
+                        # Try to parse JSON
+                        parsed_moves = json.loads(moves)
+                        moves = parsed_moves
+                    except json.JSONDecodeError:
+                        # If not valid JSON, split by comma
+                        moves = moves.split(',')
+                else:
+                    # Fallback to empty list
+                    moves = []
+                    
             # Prepare game data
             game_data = {
                 'result': result,
                 'difficulty': self.difficulty.lower(),
-                'moves': self.chess_game.move_history,
+                'moves': moves,
                 'final_fen': self.chess_game.board.fen(),
                 'end_time': datetime.datetime.now().isoformat()
             }
+            
+            print(f"Sending game record data: {game_data}")
             
             # Send the game data to the API
             response = requests.post('http://localhost:5000/api/record_game',
                                     json=game_data,
                                     headers={'Authorization': f'Bearer {self.token}', 
-                                             'Content-Type': 'application/json'})
+                                             'Content-Type': 'application/json'},
+                                    allow_redirects=False)  # Prevent automatic redirects
             
+            # Check specifically for redirect to login page (302)
+            if response.status_code == 302 and 'login' in response.headers.get('Location', ''):
+                self.message = "Authentication expired. Game not recorded. Please login again."
+                self.is_authenticated = False  # Update authentication status
+                print("Authentication expired. Game not recorded. Please login again.")
+                return
+                
             if response.status_code == 200:
                 print(f"Game recorded successfully: {response.json()}")
             else:
+                self.message = f"Failed to record game: {response.text}"
                 print(f"Failed to record game: {response.text}")
         except Exception as e:
+            self.message = f"Error recording game: {str(e)}"
             print(f"Error recording game: {e}")
+    
+    def _refresh_token_if_needed(self):
+        """
+        Check if token might be expiring soon and refresh it.
+        Returns True if still authenticated.
+        """
+        if not self.is_authenticated:
+            return False
+            
+        # If we authenticated more than 25 minutes ago, re-validate the token
+        if hasattr(self, 'auth_time') and time.time() - self.auth_time > 1500:  # 25 minutes
+            try:
+                print("Token might expire soon, refreshing authentication...")
+                response = requests.post('http://localhost:5000/api/auth', 
+                                     json={'token': self.token},
+                                     headers={'Content-Type': 'application/json'})
+                
+                if response.status_code == 200:
+                    self.auth_time = time.time()  # Update the authentication time
+                    print("Authentication refreshed successfully")
+                    return True
+                else:
+                    self.is_authenticated = False
+                    self.message = "Authentication expired. Please restart the game."
+                    print(f"Authentication refresh failed: {response.text}")
+                    return False
+            except Exception as e:
+                self.is_authenticated = False
+                self.message = f"Connection error during refresh: {str(e)}"
+                print(f"Error refreshing authentication: {e}")
+                return False
+                
+        return True
     
     def _save_game(self):
         """Save the current game state."""
         if not self.is_authenticated:
             self.message = "You must be logged in to save games"
+            return
+            
+        # Refresh token if needed
+        if not self._refresh_token_if_needed():
             return
             
         try:
@@ -496,28 +576,54 @@ class GameWindow:
             # For now, we'll just use a simple name
             save_name = f"Game_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
+            # Ensure moves is a properly formatted list
+            moves = self.chess_game.move_history
+            if not isinstance(moves, list):
+                # If it's not a list, try to convert it
+                if isinstance(moves, str):
+                    try:
+                        # Try to parse JSON
+                        parsed_moves = json.loads(moves)
+                        moves = parsed_moves
+                    except json.JSONDecodeError:
+                        # If not valid JSON, split by comma
+                        moves = moves.split(',')
+                else:
+                    # Fallback to empty list
+                    moves = []
+            
             # Prepare save data
             save_data = {
                 'name': save_name,
                 'fen': self.chess_game.board.fen(),
-                'moves': self.chess_game.move_history,
+                'moves': moves,
                 'difficulty': self.difficulty.lower()
             }
+            
+            print(f"Sending save data: {save_data}")
             
             # Send the save data to the API
             response = requests.post('http://localhost:5000/save_game',
                                     json=save_data,
                                     headers={'Authorization': f'Bearer {self.token}', 
-                                             'Content-Type': 'application/json'})
+                                             'Content-Type': 'application/json'},
+                                    allow_redirects=False)  # Prevent automatic redirects
             
+            # Check specifically for redirect to login page (302)
+            if response.status_code == 302 and 'login' in response.headers.get('Location', ''):
+                self.message = "Authentication expired. Please login again."
+                self.is_authenticated = False  # Update authentication status
+                print("Authentication expired. Please login again.")
+                return
+                
             if response.status_code == 200:
                 self.message = f"Game saved as '{save_name}'"
                 print(f"Game saved successfully: {response.json()}")
             else:
-                self.message = "Failed to save game"
+                self.message = f"Failed to save game: {response.text}"
                 print(f"Failed to save game: {response.text}")
         except Exception as e:
-            self.message = "Error saving game"
+            self.message = f"Error saving game: {str(e)}"
             print(f"Error saving game: {e}")
     
     def _recreate_piece_images(self):

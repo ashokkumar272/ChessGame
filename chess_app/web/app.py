@@ -8,6 +8,7 @@ import subprocess
 import secrets
 import time
 import sys
+import datetime
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
@@ -149,29 +150,102 @@ def create_app(debug=False):
         
         return render_template('view_game.html', game=game, moves=moves)
     
+    def authenticate_api_request():
+        """Authenticate an API request using the Authorization header.
+        
+        Returns:
+            tuple: (authenticated_user, error_response)
+            - authenticated_user: User object if authentication successful, None otherwise
+            - error_response: JSON response with error if authentication failed, None otherwise
+        """
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return None, jsonify({'error': 'Missing or invalid Authorization header'}), 401
+            
+        token = auth_header.split(' ')[1]
+        if token not in user_tokens:
+            return None, jsonify({'error': 'Invalid token'}), 401
+            
+        token_data = user_tokens[token]
+        # Check if token is not expired (30 minutes validity)
+        if time.time() - token_data['created_at'] >= 1800:
+            return None, jsonify({'error': 'Token expired'}), 401
+            
+        user = User.query.get(token_data['user_id'])
+        if not user:
+            return None, jsonify({'error': 'User not found'}), 404
+            
+        return user, None
+    
     @app.route('/save_game', methods=['POST'])
-    @login_required
     def save_game():
         """API endpoint to save a game state."""
+        # For API requests with Authorization header
+        if request.headers.get('Authorization'):
+            user, error_response = authenticate_api_request()
+            if error_response:
+                return error_response
+        # For web form submissions, check if user is logged in
+        elif not current_user.is_authenticated:
+            return jsonify({'error': 'Authentication required'}), 401
+        else:
+            user = current_user
+        
+        # Print received data for debugging
+        print(f"Received save_game request with data: {request.json}")
+        
         data = request.json
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-        
-        form = SaveGameForm(data=data)
-        if form.validate():
+            
+        # Format moves data properly - ensure it's a list that can be JSON serialized
+        if 'moves' in data:
+            # If moves is already a list, keep it as is
+            if isinstance(data['moves'], list):
+                moves_data = data['moves']
+            # If moves is a string that looks like JSON, parse it
+            elif isinstance(data['moves'], str) and data['moves'].startswith('['):
+                try:
+                    moves_data = json.loads(data['moves'])
+                except json.JSONDecodeError:
+                    moves_data = data['moves'].split(',')
+            # Otherwise, create an empty list
+            else:
+                moves_data = []
+        else:
+            moves_data = []
+            
+        # Create a simplified form validation instead of using WTForms
+        # Check required fields
+        required_fields = ['name', 'fen', 'difficulty']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+                
+        # Validate difficulty
+        if data['difficulty'] not in ['easy', 'medium', 'hard']:
+            return jsonify({'error': 'Invalid difficulty level'}), 400
+            
+        try:
+            # Create the saved game directly
             saved_game = SavedGame(
-                user_id=current_user.id,
-                name=form.name.data,
-                fen=form.fen.data,
-                moves=json.dumps(form.moves.data),
-                difficulty=form.difficulty.data
+                user_id=user.id,
+                name=data['name'],
+                fen=data['fen'],
+                moves=json.dumps(moves_data),
+                difficulty=data['difficulty']
             )
+            
             db.session.add(saved_game)
             db.session.commit()
+            
             return jsonify({'success': True, 'id': saved_game.id})
-        
-        return jsonify({'error': 'Invalid data', 'errors': form.errors}), 400
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving game: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
     
     @app.route('/load_game/<int:game_id>')
     @login_required
@@ -250,38 +324,86 @@ def create_app(debug=False):
             return jsonify({'error': f'Failed to launch game: {str(e)}'}), 500
     
     @app.route('/api/record_game', methods=['POST'])
-    @login_required
     def record_game():
         """API endpoint to record a completed game."""
+        # For API requests with Authorization header
+        if request.headers.get('Authorization'):
+            user, error_response = authenticate_api_request()
+            if error_response:
+                return error_response
+        # For web form submissions, check if user is logged in
+        elif not current_user.is_authenticated:
+            return jsonify({'error': 'Authentication required'}), 401
+        else:
+            user = current_user
+        
+        # Print received data for debugging
+        print(f"Received record_game request with data: {request.json}")
+            
         data = request.json
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
         # Validate required fields
-        required_fields = ['result', 'difficulty', 'moves', 'final_fen']
+        required_fields = ['result', 'difficulty', 'final_fen']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Create a new game record
-        game = Game(
-            user_id=current_user.id,
-            result=data['result'],
-            difficulty=data['difficulty'],
-            moves=json.dumps(data['moves']),
-            final_fen=data['final_fen'],
-            end_time=data.get('end_time')
-        )
-        
-        # Update user statistics
-        current_user.update_stats(data['result'])
-        
-        # Save to database
-        db.session.add(game)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'id': game.id})
+        # Format moves data properly
+        if 'moves' in data:
+            # If moves is already a list, keep it as is
+            if isinstance(data['moves'], list):
+                moves_data = data['moves']
+            # If moves is a string that looks like JSON, parse it
+            elif isinstance(data['moves'], str) and data['moves'].startswith('['):
+                try:
+                    moves_data = json.loads(data['moves'])
+                except json.JSONDecodeError:
+                    moves_data = data['moves'].split(',')
+            # Otherwise, create an empty list
+            else:
+                moves_data = []
+        else:
+            moves_data = []
+            
+        try:
+            # Convert end_time from string to datetime if present
+            end_time = None
+            if data.get('end_time'):
+                try:
+                    end_time = datetime.datetime.fromisoformat(data['end_time'])
+                except (ValueError, TypeError):
+                    # If conversion fails, use current time
+                    print(f"Error parsing end_time: {data['end_time']}. Using current time.")
+                    end_time = datetime.datetime.now()
+            else:
+                end_time = datetime.datetime.now()
+                
+            # Create a new game record
+            game = Game(
+                user_id=user.id,
+                start_time=datetime.datetime.now(),  # Explicitly set start_time
+                result=data['result'],
+                difficulty=data['difficulty'],
+                moves=json.dumps(moves_data),
+                final_fen=data['final_fen'],
+                end_time=end_time
+            )
+            
+            # Update user statistics
+            user.update_stats(data['result'])
+            
+            # Save to database
+            db.session.add(game)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'id': game.id})
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error recording game: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
     
     @app.route('/api/auth', methods=['POST'])
     def authenticate_token():
