@@ -7,3 +7,6 @@ SQLAlchemy
 Werkzeug
 Flask-WTF
 pytest
+pymongo
+Flask-PyMongo
+dnspython

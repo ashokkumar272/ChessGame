@@ -61,7 +61,7 @@
                         {% if recent_games %}
                         <div class="list-group">
                             {% for game in recent_games %}
-                            <a href="{{ url_for('view_game', game_id=game.id) }}" class="list-group-item list-group-item-action">
+                            <a href="{{ url_for('view_game', game_id=game._id|string) }}" class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h5 class="mb-1">
                                         {% if game.result == 'win' %}
@@ -71,7 +71,7 @@
                                         {% else %}
                                         <span class="badge bg-secondary">Draw</span>
                                         {% endif %}
-                                        Game #{{ game.id }}
+                                        Game #{{ loop.index }}
                                     </h5>
                                     <small>{{ game.end_time.strftime('%Y-%m-%d %H:%M') }}</small>
                                 </div>
@@ -108,7 +108,7 @@
                         {% if saved_games %}
                         <div class="list-group">
                             {% for game in saved_games %}
-                            <a href="{{ url_for('load_game', game_id=game.id) }}" class="list-group-item list-group-item-action">
+                            <a href="{{ url_for('load_game', game_id=game._id|string) }}" class="list-group-item list-group-item-action">ction">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h5 class="mb-1">{{ game.name }}</h5>
                                     <small>{{ game.created_at.strftime('%Y-%m-%d') }}</small>
@@ -126,4 +126,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

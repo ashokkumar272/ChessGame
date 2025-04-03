@@ -87,7 +87,7 @@
         // Handle the confirm load button
         document.getElementById('confirm-load-btn').addEventListener('click', function() {
             // Launch the game with the saved game data
-            launchGameWithSavedGame('{{ saved_game.id }}');
+            launchGameWithSavedGame('{{ saved_game._id|string }}');
             loadGameModal.hide();
         });
         {% endif %}
@@ -193,4 +193,4 @@
         }
     });
 </script>
-{% endblock %} 
+{% endblock %}

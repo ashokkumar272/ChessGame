@@ -12,9 +12,11 @@ import datetime
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from chess_app.db.models import db, User, Game, SavedGame
+from chess_app.db.models import User
+from chess_app.db import mongo_db
 from chess_app.game.chess_game import ChessGame
 from chess_app.web.forms import LoginForm, RegistrationForm, SaveGameForm
+from bson.objectid import ObjectId
 
 # Store tokens temporarily (in a real app, this would be in a database)
 user_tokens = {}
@@ -33,12 +35,10 @@ def create_app(debug=False):
     
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-for-chess-app')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///chess_app.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['DEBUG'] = debug
     
-    # Initialize extensions
-    db.init_app(app)
+    # Initialize MongoDB
+    mongo_db.init_app(app)
     
     # Initialize login manager
     login_manager = LoginManager()
@@ -47,16 +47,7 @@ def create_app(debug=False):
     
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
-    
-    # Create database tables
-    with app.app_context():
-        # Drop all tables and recreate when in debug mode
-        if debug:
-            db.drop_all()
-            print("Dropped all database tables")
-        db.create_all()
-        print("Created database tables with updated schema")
+        return User.load_user(user_id)
     
     # Register routes
     
@@ -73,8 +64,9 @@ def create_app(debug=False):
         
         form = LoginForm()
         if form.validate_on_submit():
-            user = User.query.filter_by(username=form.username.data).first()
-            if user and user.check_password(form.password.data):
+            user_doc = mongo_db.get_user_by_username(form.username.data)
+            if user_doc and mongo_db.check_password(user_doc, form.password.data):
+                user = User(user_doc)
                 login_user(user, remember=form.remember_me.data)
                 next_page = request.args.get('next')
                 return redirect(next_page or url_for('dashboard'))
@@ -90,10 +82,14 @@ def create_app(debug=False):
         
         form = RegistrationForm()
         if form.validate_on_submit():
-            user = User(username=form.username.data)
-            user.set_password(form.password.data)
-            db.session.add(user)
-            db.session.commit()
+            # Check if username already exists
+            existing_user = mongo_db.get_user_by_username(form.username.data)
+            if existing_user:
+                flash('Username already taken.')
+                return render_template('register.html', form=form)
+                
+            # Create new user
+            user_id = mongo_db.create_user(form.username.data, form.password.data)
             flash('Registration successful! You can now log in.')
             return redirect(url_for('login'))
         
@@ -110,7 +106,7 @@ def create_app(debug=False):
     @login_required
     def dashboard():
         """User dashboard route."""
-        # Get user's game statistics
+        # Get user's game statistics directly from current_user
         stats = {
             'games_played': current_user.games_played,
             'wins': current_user.wins,
@@ -120,10 +116,10 @@ def create_app(debug=False):
         }
         
         # Get recent games
-        recent_games = Game.query.filter_by(user_id=current_user.id).order_by(Game.end_time.desc()).limit(5).all()
+        recent_games = mongo_db.get_user_games(current_user.id, limit=5)
         
         # Get saved games
-        saved_games = SavedGame.query.filter_by(user_id=current_user.id).order_by(SavedGame.created_at.desc()).all()
+        saved_games = mongo_db.get_user_saved_games(current_user.id)
         
         return render_template('dashboard.html', stats=stats, recent_games=recent_games, saved_games=saved_games)
     
@@ -131,22 +127,27 @@ def create_app(debug=False):
     @login_required
     def game_history():
         """View game history route."""
-        games = Game.query.filter_by(user_id=current_user.id).order_by(Game.end_time.desc()).all()
+        games = mongo_db.get_user_games(current_user.id)
         return render_template('game_history.html', games=games)
     
-    @app.route('/game/<int:game_id>')
+    @app.route('/game/<game_id>')
     @login_required
     def view_game(game_id):
         """View a specific game route."""
-        game = Game.query.get_or_404(game_id)
+        game = mongo_db.get_game_by_id(game_id)
         
-        # Check if the game belongs to the current user
-        if game.user_id != current_user.id:
-            flash('You do not have permission to view this game.')
+        # Check if the game exists and belongs to the current user
+        if not game or str(game['user_id']) != current_user.id:
+            flash('You do not have permission to view this game or it does not exist.')
             return redirect(url_for('game_history'))
         
-        # Parse the moves from JSON
-        moves = json.loads(game.moves) if game.moves else []
+        # Parse the moves from JSON if needed
+        moves = game.get('moves', [])
+        if isinstance(moves, str):
+            try:
+                moves = json.loads(moves)
+            except:
+                moves = []
         
         return render_template('view_game.html', game=game, moves=moves)
     
@@ -171,11 +172,11 @@ def create_app(debug=False):
         if time.time() - token_data['created_at'] >= 1800:
             return None, jsonify({'error': 'Token expired'}), 401
             
-        user = User.query.get(token_data['user_id'])
-        if not user:
+        user_doc = mongo_db.get_user_by_id(token_data['user_id'])
+        if not user_doc:
             return None, jsonify({'error': 'User not found'}), 404
             
-        return user, None
+        return User(user_doc), None
     
     @app.route('/save_game', methods=['POST'])
     def save_game():
@@ -228,34 +229,42 @@ def create_app(debug=False):
             return jsonify({'error': 'Invalid difficulty level'}), 400
             
         try:
-            # Create the saved game directly
-            saved_game = SavedGame(
-                user_id=user.id,
-                name=data['name'],
-                fen=data['fen'],
-                moves=json.dumps(moves_data),
-                difficulty=data['difficulty']
-            )
+            # Prepare game data
+            game_data = {
+                'name': data['name'],
+                'fen': data['fen'],
+                'moves': moves_data,
+                'difficulty': data['difficulty']
+            }
             
-            db.session.add(saved_game)
-            db.session.commit()
+            # Save the game state
+            saved_id = mongo_db.save_game_state(user.id, game_data)
             
-            return jsonify({'success': True, 'id': saved_game.id})
+            if saved_id:
+                return jsonify({'success': True, 'id': str(saved_id)})
+            else:
+                return jsonify({'error': 'Failed to save game state'}), 500
             
         except Exception as e:
-            db.session.rollback()
             print(f"Error saving game: {str(e)}")
             return jsonify({'error': f'Database error: {str(e)}'}), 500
     
-    @app.route('/load_game/<int:game_id>')
+    @app.route('/load_game')
+    @login_required
+    def load_game_no_id():
+        """Handle missing game ID for load game route."""
+        flash('No game selected. Please choose a saved game to load.')
+        return redirect(url_for('dashboard'))
+    
+    @app.route('/load_game/<game_id>')
     @login_required
     def load_game(game_id):
         """Load a saved game route."""
-        saved_game = SavedGame.query.get_or_404(game_id)
+        saved_game = mongo_db.get_saved_game_by_id(game_id)
         
-        # Check if the game belongs to the current user
-        if saved_game.user_id != current_user.id:
-            flash('You do not have permission to load this game.')
+        # Check if the game exists and belongs to the current user
+        if not saved_game or str(saved_game['user_id']) != current_user.id:
+            flash('You do not have permission to load this game or it does not exist.')
             return redirect(url_for('dashboard'))
         
         # Redirect to the game page with the saved game data
@@ -269,10 +278,10 @@ def create_app(debug=False):
         saved_game = None
         
         if saved_game_id:
-            saved_game = SavedGame.query.get(saved_game_id)
+            saved_game = mongo_db.get_saved_game_by_id(saved_game_id)
             
             # Check if the game belongs to the current user
-            if saved_game and saved_game.user_id != current_user.id:
+            if saved_game and str(saved_game['user_id']) != current_user.id:
                 flash('You do not have permission to load this game.')
                 saved_game = None
         
@@ -297,12 +306,12 @@ def create_app(debug=False):
         saved_game_params = []
         
         if saved_game_id:
-            saved_game = SavedGame.query.get(saved_game_id)
-            if saved_game and saved_game.user_id == current_user.id:
+            saved_game = mongo_db.get_saved_game_by_id(saved_game_id)
+            if saved_game and str(saved_game['user_id']) == current_user.id:
                 # Add saved game parameters
                 saved_game_params = [
                     '--saved-game-id', saved_game_id,
-                    '--saved-game-fen', saved_game.fen
+                    '--saved-game-fen', saved_game['fen']
                 ]
         
         # Get the main script path
@@ -381,27 +390,24 @@ def create_app(debug=False):
             else:
                 end_time = datetime.datetime.now()
                 
-            # Create a new game record
-            game = Game(
-                user_id=user.id,
-                start_time=datetime.datetime.now(),  # Explicitly set start_time
-                result=data['result'],
-                difficulty=data['difficulty'],
-                moves=json.dumps(moves_data),
-                final_fen=data['final_fen'],
-                end_time=end_time
-            )
+            # Prepare game data
+            game_data = {
+                'result': data['result'],
+                'difficulty': data['difficulty'],
+                'moves': moves_data,
+                'final_fen': data['final_fen'],
+                'end_time': end_time,
+                'start_time': datetime.datetime.now() # Approximate if not provided
+            }
+            
+            # Save the game record
+            game_id = mongo_db.save_game_record(user.id, game_data)
             
             # Update user statistics
-            user.update_stats(data['result'])
+            mongo_db.update_user_stats(user.id, data['result'])
             
-            # Save to database
-            db.session.add(game)
-            db.session.commit()
-            
-            return jsonify({'success': True, 'id': game.id})
+            return jsonify({'success': True, 'id': str(game_id)})
         except Exception as e:
-            db.session.rollback()
             print(f"Error recording game: {str(e)}")
             return jsonify({'error': f'Database error: {str(e)}'}), 500
     
@@ -419,9 +425,13 @@ def create_app(debug=False):
             token_data = user_tokens[token]
             # Check if token is not expired (30 minutes validity)
             if time.time() - token_data['created_at'] < 1800:
-                user = User.query.get(token_data['user_id'])
-                if user:
-                    return jsonify({'success': True, 'user_id': user.id, 'username': user.username})
+                user_doc = mongo_db.get_user_by_id(token_data['user_id'])
+                if user_doc:
+                    return jsonify({
+                        'success': True, 
+                        'user_id': str(user_doc['_id']), 
+                        'username': user_doc['username']
+                    })
         
         return jsonify({'error': 'Invalid or expired token'}), 401
     
@@ -429,17 +439,28 @@ def create_app(debug=False):
     def leaderboard():
         """Leaderboard route."""
         # Get top players by win percentage (minimum 5 games)
-        top_players = User.query.filter(User.games_played >= 5).order_by((User.wins * 100 / User.games_played).desc()).limit(10).all()
+        top_player_docs = mongo_db.get_top_players(min_games=5, limit=10)
+        
+        # Convert to User objects to maintain template compatibility
+        top_players = []
+        for doc in top_player_docs:
+            user_obj = User({
+                "_id": doc["_id"],
+                "username": doc["username"],
+                "games_played": doc["games_played"],
+                "wins": doc["wins"],
+                "losses": doc["losses"],
+                "draws": doc["draws"]
+            })
+            top_players.append(user_obj)
         
         return render_template('leaderboard.html', top_players=top_players)
     
     # Create a test user if none exists (for development)
-    with app.app_context():
-        if not User.query.first() and debug:
-            test_user = User(username='test')
-            test_user.set_password('password')
-            db.session.add(test_user)
-            db.session.commit()
-            print("Created test user: username='test', password='password'")
+    if debug:
+        with app.app_context():
+            if not mongo_db.get_user_by_username("test"):
+                mongo_db.create_user("test", "password")
+                print("Created test user: username='test', password='password'")
     
-    return app 
+    return app

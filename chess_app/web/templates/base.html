@@ -17,23 +17,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('leaderboard') }}">Leaderboard</a>
-                    </li>
-                    {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('play') }}">Play Chess</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('game_history') }}">Game History</a>
-                    </li>
-                    {% endif %}
+                    <!-- Home button removed -->
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
@@ -82,4 +66,4 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
-</html> 
+</html>

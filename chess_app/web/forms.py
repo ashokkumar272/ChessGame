@@ -5,7 +5,7 @@ Forms for the Flask web application.
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, TextAreaField, FieldList
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
-from chess_app.db.models import User
+from chess_app.db.mongo_db import get_user_by_username
 
 
 class LoginForm(FlaskForm):
@@ -27,7 +27,7 @@ class RegistrationForm(FlaskForm):
     
     def validate_username(self, username):
         """Validate that the username is not already taken."""
-        user = User.query.filter_by(username=username.data).first()
+        user = get_user_by_username(username.data)
         if user is not None:
             raise ValidationError('Please use a different username.')
 
@@ -39,4 +39,4 @@ class SaveGameForm(FlaskForm):
     fen = StringField('FEN', validators=[DataRequired()])
     moves = FieldList(StringField('Move'))
     difficulty = SelectField('Difficulty', choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
-    submit = SubmitField('Save Game') 
+    submit = SubmitField('Save Game')
