@@ -11,6 +11,7 @@ A full-featured chess application that allows users to play against AI opponents
 - Review previous games
 - Save game states for future reference
 - Intuitive Pygame-based UI
+- Web interface with game history and replay functionality
 
 ## Project Structure
 
@@ -19,10 +20,13 @@ A full-featured chess application that allows users to play against AI opponents
   - `ai/` - AI opponent implementation
   - `ui/` - Pygame-based user interface
   - `web/` - Flask web application for user management and statistics
-  - `db/` - Database models and interactions
-  - `utils/` - Utility functions
+  - `db/` - Database models and interactions for MongoDB
 - `assets/` - Game assets (piece images, etc.)
-- `saved_games/` - Directory for saved game files
+
+## Requirements
+
+- Python 3.8+
+- MongoDB running locally (default: mongodb://localhost:27017/chess_app)
 
 ## Installation
 
@@ -31,6 +35,7 @@ A full-featured chess application that allows users to play against AI opponents
    ```
    pip install -r requirements.txt
    ```
+3. Make sure MongoDB is installed and running
 
 ## Running the Game
 
@@ -51,16 +56,22 @@ This will launch the chess game window where you can play against the AI.
 To start only the web interface (for user management, statistics, etc.):
 
 ```
-python run.py --no-ui
+python run.py --no-web
 ```
 
-This will start the Flask web server without launching the Pygame UI. You can then access the web interface at http://localhost:5000.
+This will start the Flask web server. You can then access the web interface at http://localhost:5000.
 
 ### Command Line Options
 
-- `--no-web`: Disable the web server
-- `--no-ui`: Disable the Pygame UI
+- `--no-web`: Disable the web server and run standalone game
+- `--user-id`: User ID for the Pygame UI to connect to
+- `--token`: Authentication token for the user
+- `--difficulty`: Difficulty level for the AI (easy, medium, hard)
+- `--saved-game-id`: ID of the saved game to load
+- `--saved-game-fen`: FEN of the saved game to load
 - `--debug`: Enable debug mode
+- `--mongo-uri`: MongoDB connection URI
+- `--quiet`: Show minimal server output
 
 ## Playing the Game
 
@@ -80,6 +91,7 @@ This will start the Flask web server without launching the Pygame UI. You can th
 - Game history and replay
 - Leaderboard
 - Save and load games
+- Launch Pygame interface directly from the browser
 
 ## Development
 
@@ -94,8 +106,10 @@ pytest
 - python-chess - Chess logic library
 - Pygame - Game UI
 - Flask - Web backend
-- SQLAlchemy - Database ORM
+- Flask-Login - User authentication
+- PyMongo/MongoDB - Database
+- Bootstrap - Frontend styling
 
 ## License
 
-This project is open source and available under the MIT License. 
+This project is open source and available under the MIT License.
