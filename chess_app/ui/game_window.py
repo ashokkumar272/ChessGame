@@ -152,7 +152,7 @@ class GameWindow:
         piece_symbols = ['p', 'n', 'b', 'r', 'q', 'k', 'P', 'N', 'B', 'R', 'Q', 'K']
         
         # Map from chess notation to image file notation
-        # Black pieces start with 'b', white pieces start with 'w'
+        # Black pieces: bb, bn, etc. White pieces: wb, wn, etc.
         piece_mapping = {
             'p': 'bp', 'n': 'bn', 'b': 'bb', 'r': 'br', 'q': 'bq', 'k': 'bk',
             'P': 'wp', 'N': 'wn', 'B': 'wb', 'R': 'wr', 'Q': 'wq', 'K': 'wk'
@@ -162,7 +162,7 @@ class GameWindow:
         
         # Check for each piece symbol
         for symbol in piece_symbols:
-            image_path = os.path.join(self.PIECES_DIR, f"{piece_mapping[symbol]}.jpg")
+            image_path = os.path.join(self.PIECES_DIR, f"{piece_mapping[symbol]}.png")
             
             try:
                 if os.path.exists(image_path):
