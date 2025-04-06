@@ -1,12 +1,9 @@
 python-chess
 pygame
 Flask
-Flask-SQLAlchemy
 Flask-Login
-SQLAlchemy
 Werkzeug
 Flask-WTF
 pytest
 pymongo
 Flask-PyMongo
-dnspython

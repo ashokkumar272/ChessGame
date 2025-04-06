@@ -456,6 +456,42 @@ def create_app(debug=False):
         
         return render_template('leaderboard.html', top_players=top_players)
     
+    @app.route('/api/delete_saved_game/<game_id>', methods=['DELETE'])
+    def delete_saved_game(game_id):
+        """API endpoint to delete a saved game."""
+        # For API requests with Authorization header
+        if request.headers.get('Authorization'):
+            user, error_response = authenticate_api_request()
+            if error_response:
+                return error_response
+        # For web form submissions, check if user is logged in
+        elif not current_user.is_authenticated:
+            return jsonify({'error': 'Authentication required'}), 401
+        else:
+            user = current_user
+        
+        try:
+            saved_game = mongo_db.get_saved_game_by_id(game_id)
+            
+            # Check if the game exists and belongs to the current user
+            if not saved_game:
+                return jsonify({'error': 'Saved game not found'}), 404
+                
+            if str(saved_game['user_id']) != user.id:
+                return jsonify({'error': 'You do not have permission to delete this saved game'}), 403
+            
+            # Delete the saved game
+            result = mongo_db.delete_saved_game(game_id)
+            
+            if result:
+                return jsonify({'success': True, 'message': 'Saved game deleted successfully'})
+            else:
+                return jsonify({'error': 'Failed to delete saved game'}), 500
+                
+        except Exception as e:
+            print(f"Error deleting saved game: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+
     # Create a test user if none exists (for development)
     if debug:
         with app.app_context():

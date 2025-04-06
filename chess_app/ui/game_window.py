@@ -520,12 +520,39 @@ class GameWindow:
                 
             if response.status_code == 200:
                 print(f"Game recorded successfully: {response.json()}")
+                
+                # If this was a saved game, delete it after completion
+                if self.saved_game_id:
+                    self._delete_saved_game(self.saved_game_id)
             else:
                 self.message = f"Failed to record game: {response.text}"
                 print(f"Failed to record game: {response.text}")
         except Exception as e:
             self.message = f"Error recording game: {str(e)}"
             print(f"Error recording game: {e}")
+            
+    def _delete_saved_game(self, saved_game_id):
+        """
+        Delete a saved game after it's been completed.
+        
+        Args:
+            saved_game_id: ID of the saved game to delete
+        """
+        if not self.is_authenticated or not saved_game_id:
+            return
+            
+        try:
+            # Send a request to delete the saved game
+            response = requests.delete(f'http://localhost:5000/api/delete_saved_game/{saved_game_id}',
+                                     headers={'Authorization': f'Bearer {self.token}'},
+                                     allow_redirects=False)
+            
+            if response.status_code == 200:
+                print(f"Saved game {saved_game_id} deleted successfully after completion")
+            else:
+                print(f"Failed to delete saved game: {response.text}")
+        except Exception as e:
+            print(f"Error deleting saved game: {e}")
     
     def _refresh_token_if_needed(self):
         """
@@ -685,4 +712,4 @@ class GameWindow:
         
         # Clean up resources before exiting
         pygame.quit()
-        sys.exit() 
+        sys.exit()

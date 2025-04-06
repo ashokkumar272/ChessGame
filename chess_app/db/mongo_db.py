@@ -170,6 +170,18 @@ def get_saved_game_by_id(game_id):
     except:
         return None
 
+def delete_saved_game(game_id):
+    """Delete a saved game by its ID."""
+    try:
+        if isinstance(game_id, str):
+            game_id = ObjectId(game_id)
+            
+        result = mongo.db.saved_games.delete_one({"_id": game_id})
+        return result.deleted_count > 0
+    except Exception as e:
+        print(f"Error deleting saved game: {e}")
+        return False
+
 # Leaderboard functions
 def get_top_players(min_games=5, limit=10):
     """Get the top players by win percentage (minimum games required)."""

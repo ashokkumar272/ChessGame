@@ -4,8 +4,7 @@ Chess AI implementation using python-chess with different difficulty levels.
 
 import chess
 import random
-from typing import Optional, List, Dict, Tuple
-import time
+from typing import Optional, List
 
 class ChessAI:
     """
