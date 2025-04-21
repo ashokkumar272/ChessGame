@@ -10,7 +10,7 @@ import json
 import requests
 import datetime
 import time
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, List, Dict
 from chess_app.game.chess_game import ChessGame
 from chess_app.ai.chess_ai import ChessAI
 
@@ -143,7 +143,7 @@ class GameWindow:
     
     def _load_piece_images(self) -> Dict:
         """
-        Load chess piece images or create placeholders if images don't exist.
+        Load chess piece images from the assets directory.
         
         Returns:
             Dict: Dictionary mapping piece symbols to their images
@@ -158,64 +158,25 @@ class GameWindow:
             'P': 'wp', 'N': 'wn', 'B': 'wb', 'R': 'wr', 'Q': 'wq', 'K': 'wk'
         }
         
-        missing_images = []
-        
-        # Check for each piece symbol
+        # Load each piece image
         for symbol in piece_symbols:
             image_path = os.path.join(self.PIECES_DIR, f"{piece_mapping[symbol]}.png")
-            
             try:
-                if os.path.exists(image_path):
-                    # Load the image if it exists
-                    image = pygame.image.load(image_path)
-                    print(f"Loaded image for {symbol}: {image_path}")
-                else:
-                    # Create a placeholder image if the image doesn't exist
-                    missing_images.append(piece_mapping[symbol])
-                    image = self._create_placeholder_piece(symbol)
-                    print(f"Using placeholder for {symbol}, image not found: {image_path}")
-                
+                # Load the image
+                image = pygame.image.load(image_path)
                 # Scale the image to fit the square
                 pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
             except Exception as e:
                 print(f"Error loading image for {symbol}: {e}")
-                image = self._create_placeholder_piece(symbol)
-                pieces[symbol] = pygame.transform.scale(image, (self.SQUARE_SIZE, self.SQUARE_SIZE))
+                # If there's an error, we'll raise it so it's visible to the user
+                raise ValueError(f"Failed to load chess piece image: {image_path}")
         
-        if missing_images:
-            print(f"WARNING: The following piece images are missing: {', '.join(missing_images)}")
-            
         return pieces
     
-    def _create_placeholder_piece(self, symbol: str) -> pygame.Surface:
-        """
-        Create a placeholder image for a chess piece.
-        
-        Args:
-            symbol: Chess piece symbol (p, n, b, r, q, k, P, N, B, R, Q, K)
-            
-        Returns:
-            pygame.Surface: Placeholder image for the piece
-        """
-        # Create a transparent surface
-        image = pygame.Surface((100, 100), pygame.SRCALPHA)
-        
-        # Determine color based on case (uppercase = white, lowercase = black)
-        is_white = symbol.isupper()
-        piece_color = self.WHITE if is_white else self.BLACK
-        text_color = self.BLACK if is_white else self.WHITE
-        
-        # Draw a circle as the base
-        pygame.draw.circle(image, piece_color, (50, 50), 40)
-        pygame.draw.circle(image, (128, 128, 128), (50, 50), 40, 2)
-        
-        # Add the symbol text
-        font = pygame.font.SysFont("Arial", 60, bold=True)
-        text = font.render(symbol.upper(), True, text_color)
-        text_rect = text.get_rect(center=(50, 50))
-        image.blit(text, text_rect)
-        
-        return image
+    def _recreate_piece_images(self):
+        """Reload all piece images."""
+        # Directly reload the pieces
+        self.piece_images = self._load_piece_images()
     
     def _draw(self):
         """Draw the game screen."""
@@ -652,11 +613,6 @@ class GameWindow:
         except Exception as e:
             self.message = f"Error saving game: {str(e)}"
             print(f"Error saving game: {e}")
-    
-    def _recreate_piece_images(self):
-        """Reload all piece images."""
-        # Directly reload the pieces
-        self.piece_images = self._load_piece_images()
     
     def run(self):
         """Main game loop."""

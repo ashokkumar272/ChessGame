@@ -6,7 +6,7 @@ import chess
 import datetime
 import json
 import os
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Dict
 
 
 class ChessGame:

@@ -3,7 +3,7 @@ Forms for the Flask web application.
 """
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, TextAreaField, FieldList
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, FieldList
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
 from chess_app.db.mongo_db import get_user_by_username
 

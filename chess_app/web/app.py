@@ -11,12 +11,10 @@ import sys
 import datetime
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
 from chess_app.db.models import User
 from chess_app.db import mongo_db
-from chess_app.game.chess_game import ChessGame
-from chess_app.web.forms import LoginForm, RegistrationForm, SaveGameForm
-from bson.objectid import ObjectId
+from chess_app.web.forms import LoginForm, RegistrationForm
+
 
 # Store tokens temporarily (in a real app, this would be in a database)
 user_tokens = {}

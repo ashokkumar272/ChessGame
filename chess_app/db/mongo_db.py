@@ -1,8 +1,6 @@
 """
 MongoDB database connection and helper functions for the chess application.
 """
-
-import os
 from datetime import datetime
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
